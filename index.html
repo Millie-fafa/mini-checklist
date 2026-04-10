@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Checklist export PDF</title>
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #d1d5db;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --success: #16a34a;
+      --danger: #dc2626;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 24px;
+    }
+
+    .container {
+      max-width: 760px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+    }
+
+    h1 {
+      margin-top: 0;
+      margin-bottom: 8px;
+      font-size: 28px;
+    }
+
+    .subtitle {
+      margin-top: 0;
+      color: var(--muted);
+      margin-bottom: 24px;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      min-width: 220px;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 15px;
+    }
+
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 15px;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn-primary:hover { background: var(--accent-hover); }
+
+    .btn-secondary {
+      background: #e5e7eb;
+      color: var(--text);
+    }
+
+    .btn-secondary:hover { background: #d1d5db; }
+
+    .btn-danger {
+      background: #fee2e2;
+      color: var(--danger);
+    }
+
+    .btn-danger:hover { background: #fecaca; }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    li {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid #eef2f7;
+    }
+
+    li:last-child { border-bottom: none; }
+
+    .task-label {
+      flex: 1;
+      font-size: 16px;
+    }
+
+    .task-label.done {
+      text-decoration: line-through;
+      color: var(--muted);
+    }
+
+    .stats {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .empty {
+      text-align: center;
+      color: var(--muted);
+      padding: 18px 0 8px;
+    }
+
+    .footer-note {
+      margin-top: 18px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    @media print {
+      .toolbar,
+      .delete-btn,
+      .footer-note {
+        display: none !important;
+      }
+
+      body {
+        background: white;
+        padding: 0;
+      }
+
+      .card {
+        box-shadow: none;
+        border: none;
+        padding: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>Ma checklist</h1>
+      <p class="subtitle">Coche les éléments terminés puis exporte en PDF.</p>
+
+      <div class="toolbar">
+        <input id="taskInput" type="text" placeholder="Ajouter une tâche..." />
+        <button class="btn-primary" id="addBtn">Ajouter</button>
+        <button class="btn-secondary" id="pdfBtn">Exporter en PDF</button>
+      </div>
+
+      <ul id="taskList"></ul>
+      <p id="emptyState" class="empty">Aucune tâche pour l’instant.</p>
+      <div id="stats" class="stats"></div>
+      <p class="footer-note">Astuce : l’export PDF utilise la fenêtre d’impression du navigateur.</p>
+    </div>
+  </div>
+
+  <script>
+    const defaultTasks = [
+      { text: 'Créer le programme de formation', done: false },
+      { text: 'Préparer les documents stagiaires', done: false },
+      { text: 'Vérifier les signatures', done: true }
+    ];
+
+    const taskInput = document.getElementById('taskInput');
+    const addBtn = document.getElementById('addBtn');
+    const pdfBtn = document.getElementById('pdfBtn');
+    const taskList = document.getElementById('taskList');
+    const stats = document.getElementById('stats');
+    const emptyState = document.getElementById('emptyState');
+
+    let tasks = JSON.parse(localStorage.getItem('miniChecklistTasks')) || defaultTasks;
+
+    function saveTasks() {
+      localStorage.setItem('miniChecklistTasks', JSON.stringify(tasks));
+    }
+
+    function updateStats() {
+      const doneCount = tasks.filter(task => task.done).length;
+      stats.textContent = `${doneCount} tâche(s) cochée(s) sur ${tasks.length}`;
+      emptyState.style.display = tasks.length === 0 ? 'block' : 'none';
+    }
+
+    function renderTasks() {
+      taskList.innerHTML = '';
+
+      tasks.forEach((task, index) => {
+        const li = document.createElement('li');
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = task.done;
+        checkbox.addEventListener('change', () => {
+          tasks[index].done = checkbox.checked;
+          saveTasks();
+          renderTasks();
+        });
+
+        const label = document.createElement('span');
+        label.textContent = task.text;
+        label.className = 'task-label' + (task.done ? ' done' : '');
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = 'Supprimer';
+        deleteBtn.className = 'btn-danger delete-btn';
+        deleteBtn.addEventListener('click', () => {
+          tasks.splice(index, 1);
+          saveTasks();
+          renderTasks();
+        });
+
+        li.appendChild(checkbox);
+        li.appendChild(label);
+        li.appendChild(deleteBtn);
+        taskList.appendChild(li);
+      });
+
+      updateStats();
+    }
+
+    function addTask() {
+      const text = taskInput.value.trim();
+      if (!text) return;
+
+      tasks.push({ text, done: false });
+      taskInput.value = '';
+      saveTasks();
+      renderTasks();
+      taskInput.focus();
+    }
+
+    addBtn.addEventListener('click', addTask);
+
+    taskInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') addTask();
+    });
+
+    pdfBtn.addEventListener('click', () => {
+      window.print();
+    });
+
+    renderTasks();
+  </script>
+</body>
+</html>
